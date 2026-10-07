@@ -70,7 +70,7 @@ Setup takes about two minutes: you create a token in the GRAAS app, then paste i
   </tr>
 </table>
 
-Choose the access with **Allow starting and stopping zones**:
+Choose the access with **Allow starting and stopping zones**. It starts off, so a new token is read only until you turn it on:
 
 - **On**: Home Assistant can see everything **and** start or stop watering.
 - **Off**: the token is **read only**, so Home Assistant can only show status and sensors.
