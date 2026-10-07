@@ -1,0 +1,23 @@
+# Local Home Assistant for developing the GRAAS integration.
+#
+#   docker compose -f home-assistant/dev/compose.yaml up -d
+#   open http://localhost:8123
+#
+# Our integration is mounted live from ../custom_components (restart the
+# container to load code changes). The local GRAAS backend is reachable from
+# inside the container as http://host.docker.internal:8080 (turn on Advanced
+# mode in your HA profile to see the "GRAAS server" field).
+services:
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    container_name: graas-ha-dev
+    ports:
+      - "8123:8123"
+    volumes:
+      - ./config:/config
+      - ../custom_components/graas:/config/custom_components/graas:ro
+    environment:
+      TZ: Europe/Vilnius
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
