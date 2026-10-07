@@ -81,6 +81,9 @@
       "water_pressure": {
         "name": "Vandens slėgis"
       },
+      "water_pressure_2": {
+        "name": "Vandens slėgis 2"
+      },
       "wind_speed": {
         "name": "Vėjo greitis"
       },
@@ -101,6 +104,21 @@
       },
       "soil_ph": {
         "name": "Dirvos pH"
+      },
+      "soil_nitrogen": {
+        "name": "Dirvos azotas"
+      },
+      "soil_phosphorus": {
+        "name": "Dirvos fosforas"
+      },
+      "soil_potassium": {
+        "name": "Dirvos kalis"
+      },
+      "soil_salinity": {
+        "name": "Dirvos druskingumas"
+      },
+      "soil_tds": {
+        "name": "Dirvos ištirpusios medžiagos"
       },
       "flow_rate": {
         "name": "Vandens srautas"
@@ -144,9 +162,39 @@
         }
       }
     },
+    "stop_all": {
+      "name": "Sustabdyti visas zonas",
+      "description": "Sustabdo visas pasirinktų GRAAS valdiklių zonas. Pasirinkite valdiklį, zoną arba patalpą; nieko nepasirinkus sustabdomi visi GRAAS valdikliai."
+    },
     "dashboard": {
       "name": "Valdymo skydelis",
       "description": "Sukuria paruoštą laistymo valdymo skydelį iš jūsų GRAAS valdiklių ir zonų. Nukopijuokite yaml iš atsakymo į naują skydelį (Redaguoti → ⋮ → Neapdorotos konfigūracijos redaktorius)."
+    }
+  },
+  "exceptions": {
+    "command_refused": {
+      "message": "{message}"
+    },
+    "cannot_connect": {
+      "message": "Nepavyko susisiekti su GRAAS: {error}"
+    },
+    "auth_failed": {
+      "message": "GRAAS nebepriima API rakto. Iš naujo prijunkite GRAAS integraciją su nauju raktu."
+    },
+    "no_controllers": {
+      "message": "Pasirinktame tiksle nėra GRAAS valdiklio."
+    },
+    "entry_not_loaded": {
+      "message": "GRAAS paskyra {entry} neįkelta."
+    },
+    "no_entries": {
+      "message": "Pirmiausia pridėkite GRAAS integraciją."
+    },
+    "rate_limited": {
+      "message": "Per daug užklausų į GRAAS. Palaukite minutę ir bandykite dar kartą."
+    },
+    "too_many_liters": {
+      "message": "{liters} L vienam augalui × {plants} augalai = {total} L; vienas laistymas gali būti ne daugiau kaip {max} L."
     }
   }
 }

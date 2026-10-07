@@ -6,11 +6,9 @@ import re
 from collections.abc import Awaitable
 from typing import Any
 
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .api import GraasCommandError, GraasError
 from .const import DOMAIN
 from .coordinator import GraasCoordinator
 
@@ -20,6 +18,41 @@ DEVICE_MODELS = {
     "irigator": "Irigator",
     "agrogator": "Agrogator",
 }
+
+
+def controller_identifier(controller: dict[str, Any]) -> str:
+    return str(controller["deviceId"])
+
+
+def zone_identifier(controller: dict[str, Any], zone_id: int) -> str:
+    return f"{controller['deviceId']}_zone_{zone_id}"
+
+
+def controller_name(controller: dict[str, Any]) -> str:
+    return controller.get("name") or controller["deviceId"]
+
+
+def controller_device_info(controller: dict[str, Any]) -> DeviceInfo:
+    """The controller as a Home Assistant device."""
+    return DeviceInfo(
+        identifiers={(DOMAIN, controller_identifier(controller))},
+        name=controller_name(controller),
+        manufacturer="GRAAS Automation",
+        model=DEVICE_MODELS.get(str(controller.get("type")), str(controller.get("type") or "Controller")),
+        serial_number=controller["deviceId"],
+        sw_version=controller.get("firmwareVersion"),
+    )
+
+
+def zone_device_info(controller: dict[str, Any], zone_id: int, zone: dict[str, Any]) -> DeviceInfo:
+    """A zone as its own device. Its link to the controller (via_device_id) is set when
+    the integration registers the devices, before any entity is added."""
+    return DeviceInfo(
+        identifiers={(DOMAIN, zone_identifier(controller, zone_id))},
+        name=zone_device_name(controller_name(controller), zone.get("name"), zone.get("valve")),
+        manufacturer="GRAAS Automation",
+        model=f"Irrigation zone (valve {zone.get('valve')})",
+    )
 
 
 class GraasEntity(CoordinatorEntity[GraasCoordinator]):
@@ -32,24 +65,11 @@ class GraasEntity(CoordinatorEntity[GraasCoordinator]):
         self._device_id = device_id
         device = self.device_data
         self._attr_unique_id = f"device_{device['deviceId']}_{key}"
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, device["deviceId"])},
-            name=device.get("name") or device["deviceId"],
-            manufacturer="GRAAS Automation",
-            model=DEVICE_MODELS.get(str(device.get("type")), str(device.get("type") or "Controller")),
-            serial_number=device["deviceId"],
-            sw_version=device.get("firmwareVersion"),
-        )
+        self._attr_device_info = controller_device_info(device)
 
     async def _command(self, call: Awaitable[Any]) -> None:
         """Send a command; GRAAS's refusal is shown to the user. Then refresh."""
-        try:
-            await call
-        except GraasCommandError as err:
-            raise HomeAssistantError(str(err)) from err
-        except GraasError as err:
-            raise HomeAssistantError(f"GRAAS is unreachable: {err}") from err
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.async_command(call)
 
     @property
     def device_data(self) -> dict[str, Any]:
@@ -64,10 +84,10 @@ class GraasEntity(CoordinatorEntity[GraasCoordinator]):
 _DEFAULT_ZONE_NAME = re.compile(r"^(zone|zona)\s*\d+$", re.IGNORECASE)
 
 
-def zone_device_name(controller_name: str, zone_name: str | None, valve: Any) -> str:
+def zone_device_name(parent_name: str, zone_name: str | None, valve: Any) -> str:
     """'Lawn' for a named zone, 'Garden Zone 2' for a default-named one."""
     name = (zone_name or "").strip() or f"Zone {valve}"
-    return f"{controller_name} {name}" if _DEFAULT_ZONE_NAME.match(name) else name
+    return f"{parent_name} {name}" if _DEFAULT_ZONE_NAME.match(name) else name
 
 
 class GraasZoneEntity(GraasEntity):
@@ -82,16 +102,7 @@ class GraasZoneEntity(GraasEntity):
         super().__init__(coordinator, coordinator.data.zone_device[zone_id], key)
         # Keyed by the database zone id: survives renames on either side.
         self._attr_unique_id = f"zone_{zone_id}_{key}"
-        controller = self.device_data
-        zone = self.zone_data
-        controller_name = controller.get("name") or controller["deviceId"]
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"{controller['deviceId']}_zone_{zone_id}")},
-            name=zone_device_name(controller_name, zone.get("name"), zone.get("valve")),
-            manufacturer="GRAAS Automation",
-            model=f"Irrigation zone (valve {zone.get('valve')})",
-            via_device=(DOMAIN, controller["deviceId"]),
-        )
+        self._attr_device_info = zone_device_info(self.device_data, zone_id, self.zone_data)
 
     @property
     def zone_data(self) -> dict[str, Any]:

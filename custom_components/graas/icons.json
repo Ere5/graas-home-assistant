@@ -62,6 +62,24 @@
       },
       "paused_until": {
         "default": "mdi:timer-pause-outline"
+      },
+      "water_pressure_2": {
+        "default": "mdi:gauge"
+      },
+      "soil_nitrogen": {
+        "default": "mdi:sprout"
+      },
+      "soil_phosphorus": {
+        "default": "mdi:sprout"
+      },
+      "soil_potassium": {
+        "default": "mdi:sprout"
+      },
+      "soil_salinity": {
+        "default": "mdi:shaker-outline"
+      },
+      "soil_tds": {
+        "default": "mdi:water-opacity"
       }
     },
     "switch": {
@@ -76,6 +94,9 @@
   "services": {
     "start_zone": {
       "service": "mdi:sprinkler-variant"
+    },
+    "stop_all": {
+      "service": "mdi:stop-circle-outline"
     },
     "dashboard": {
       "service": "mdi:view-dashboard-outline"

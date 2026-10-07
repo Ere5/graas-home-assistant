@@ -98,9 +98,7 @@ async def test_reauth_refuses_another_accounts_token(
     assert result["reason"] == "wrong_account"
 
 
-async def test_the_api_address_defaults_to_graas_cloud(
-    hass: HomeAssistant, mock_api: dict[str, AsyncMock]
-) -> None:
+async def test_the_api_address_defaults_to_graas_cloud(hass: HomeAssistant, mock_api: dict[str, AsyncMock]) -> None:
     flow_id = await _start(hass)
 
     result = await hass.config_entries.flow.async_configure(flow_id, {"api_token": TOKEN})
@@ -108,17 +106,15 @@ async def test_the_api_address_defaults_to_graas_cloud(
     assert result["data"][CONF_API_URL] == DEFAULT_API_URL
 
 
-async def test_another_server_can_be_set_under_advanced(
-    hass: HomeAssistant, mock_api: dict[str, AsyncMock]
-) -> None:
+async def test_another_server_can_be_set_under_advanced(hass: HomeAssistant, mock_api: dict[str, AsyncMock]) -> None:
     """For development and staging: a collapsed "Advanced" section in the form."""
     flow_id = await _start(hass)
 
     result = await hass.config_entries.flow.async_configure(
-        flow_id, {"api_token": TOKEN, "advanced": {CONF_API_URL: "http://host.docker.internal:8080/"}}
+        flow_id, {"api_token": TOKEN, "advanced": {CONF_API_URL: "https://graas.example.com/"}}
     )
 
-    assert result["data"][CONF_API_URL] == "http://host.docker.internal:8080"
+    assert result["data"][CONF_API_URL] == "https://graas.example.com"
 
 
 async def test_the_server_field_sits_in_a_collapsed_section(hass: HomeAssistant) -> None:

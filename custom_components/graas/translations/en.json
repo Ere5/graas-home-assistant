@@ -81,6 +81,9 @@
       "water_pressure": {
         "name": "Water pressure"
       },
+      "water_pressure_2": {
+        "name": "Water pressure 2"
+      },
       "wind_speed": {
         "name": "Wind speed"
       },
@@ -101,6 +104,21 @@
       },
       "soil_ph": {
         "name": "Soil pH"
+      },
+      "soil_nitrogen": {
+        "name": "Soil nitrogen"
+      },
+      "soil_phosphorus": {
+        "name": "Soil phosphorus"
+      },
+      "soil_potassium": {
+        "name": "Soil potassium"
+      },
+      "soil_salinity": {
+        "name": "Soil salinity"
+      },
+      "soil_tds": {
+        "name": "Soil dissolved solids"
       },
       "flow_rate": {
         "name": "Flow rate"
@@ -144,9 +162,39 @@
         }
       }
     },
+    "stop_all": {
+      "name": "Stop all zones",
+      "description": "Stops every zone of the targeted GRAAS controllers. Target a controller, a zone or an area; without a target, every GRAAS controller stops."
+    },
     "dashboard": {
       "name": "Dashboard",
       "description": "Builds a ready-made watering dashboard from your GRAAS controllers and zones. Copy the yaml from the response into a new dashboard (Edit → ⋮ → Raw configuration editor)."
+    }
+  },
+  "exceptions": {
+    "command_refused": {
+      "message": "{message}"
+    },
+    "cannot_connect": {
+      "message": "GRAAS is unreachable: {error}"
+    },
+    "auth_failed": {
+      "message": "GRAAS rejected the API token. Re-authenticate the GRAAS integration with a new token."
+    },
+    "no_controllers": {
+      "message": "The target has no GRAAS controller."
+    },
+    "entry_not_loaded": {
+      "message": "The GRAAS account {entry} is not loaded."
+    },
+    "no_entries": {
+      "message": "Add the GRAAS integration first."
+    },
+    "rate_limited": {
+      "message": "Too many requests to GRAAS. Wait a minute and try again."
+    },
+    "too_many_liters": {
+      "message": "{liters} L per plant × {plants} plants is {total} L; a run can be at most {max} L."
     }
   }
 }

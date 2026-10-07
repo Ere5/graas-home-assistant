@@ -20,28 +20,53 @@ from .coordinator import GraasCoordinator
 from .entity import zone_device_name
 
 # Device-level readings shown under each controller, when the controller has them.
-DEVICE_SENSOR_KEYS = ("air_temperature", "air_humidity", "soil_temperature", "pressure", "wind_speed")
+DEVICE_SENSOR_KEYS = ("air_temperature", "air_humidity", "soil_temperature", "pressure", "pressure2", "wind_speed")
 # Per-zone readings, in the order they appear on the zone's section.
 ZONE_SENSOR_KEYS = ("watering_ends", "next_run", "last_irrigation", "soil_moisture", "zone_soil_temperature")
 
 # Short tile titles (the section heading already names the zone or controller).
 TITLES: dict[str, dict[str, str]] = {
     "en": {
-        "dashboard": "Watering", "watering": "Watering", "stop_all": "Stop all zones", "run_time": "Run time",
-        "watering_ends": "Watering ends", "next_run": "Next run", "last_irrigation": "Last watered",
-        "soil_moisture": "Soil moisture", "zone_soil_temperature": "Soil temperature",
-        "rain_postponed": "Rain postponed", "air_temperature": "Air temperature", "air_humidity": "Air humidity",
-        "soil_temperature": "Soil temperature", "pressure": "Water pressure", "wind_speed": "Wind",
-        "rain_delay": "Rain delay", "paused_until": "Paused until", "skip_next_run": "Skip next run",
+        "dashboard": "Watering",
+        "watering": "Watering",
+        "stop_all": "Stop all zones",
+        "run_time": "Run time",
+        "watering_ends": "Watering ends",
+        "next_run": "Next run",
+        "last_irrigation": "Last watered",
+        "soil_moisture": "Soil moisture",
+        "zone_soil_temperature": "Soil temperature",
+        "rain_postponed": "Rain postponed",
+        "air_temperature": "Air temperature",
+        "air_humidity": "Air humidity",
+        "soil_temperature": "Soil temperature",
+        "pressure": "Water pressure",
+        "pressure2": "Water pressure 2",
+        "wind_speed": "Wind",
+        "rain_delay": "Rain delay",
+        "paused_until": "Paused until",
+        "skip_next_run": "Skip next run",
     },
     "lt": {
-        "dashboard": "Laistymas", "watering": "Laistymas", "stop_all": "Sustabdyti visas zonas",
-        "run_time": "Laistymo trukmė", "watering_ends": "Laistymas baigsis", "next_run": "Kitas laistymas",
-        "last_irrigation": "Paskutinis laistymas", "soil_moisture": "Dirvos drėgmė",
-        "zone_soil_temperature": "Dirvos temperatūra", "rain_postponed": "Atidėta dėl lietaus",
-        "air_temperature": "Oro temperatūra", "air_humidity": "Oro drėgmė", "soil_temperature": "Dirvos temperatūra",
-        "pressure": "Vandens slėgis", "wind_speed": "Vėjas",
-        "rain_delay": "Lietaus pauzė", "paused_until": "Sustabdyta iki", "skip_next_run": "Praleisti kitą laistymą",
+        "dashboard": "Laistymas",
+        "watering": "Laistymas",
+        "stop_all": "Sustabdyti visas zonas",
+        "run_time": "Laistymo trukmė",
+        "watering_ends": "Laistymas baigsis",
+        "next_run": "Kitas laistymas",
+        "last_irrigation": "Paskutinis laistymas",
+        "soil_moisture": "Dirvos drėgmė",
+        "zone_soil_temperature": "Dirvos temperatūra",
+        "rain_postponed": "Atidėta dėl lietaus",
+        "air_temperature": "Oro temperatūra",
+        "air_humidity": "Oro drėgmė",
+        "soil_temperature": "Dirvos temperatūra",
+        "pressure": "Vandens slėgis",
+        "pressure2": "Vandens slėgis 2",
+        "wind_speed": "Vėjas",
+        "rain_delay": "Lietaus pauzė",
+        "paused_until": "Sustabdyta iki",
+        "skip_next_run": "Praleisti kitą laistymą",
     },
 }
 
@@ -59,8 +84,10 @@ def build_dashboard(hass: HomeAssistant) -> dict[str, Any]:
         entry = entities.async_get(entity_id)
         return None if entry is None or entry.disabled else entity_id
 
-    def device_name(identifier: str, fallback: str) -> str:
-        device = devices.async_get_device(identifiers={(DOMAIN, identifier)})
+    def device_name(coordinator: GraasCoordinator, identifier: str, fallback: str) -> str:
+        # By the registry id kept at setup: identifier lookups are deprecated.
+        device_id = coordinator.device_entry_ids.get(identifier)
+        device = devices.async_get(device_id) if device_id else None
         if device is None:
             return fallback
         return device.name_by_user or device.name or fallback
@@ -73,7 +100,7 @@ def build_dashboard(hass: HomeAssistant) -> dict[str, Any]:
         coordinator: GraasCoordinator = entry.runtime_data
         for controller in coordinator.data.devices.values():
             serial = controller["deviceId"]
-            controller_name = device_name(serial, controller.get("name") or serial)
+            controller_name = device_name(coordinator, serial, controller.get("name") or serial)
             badges = [
                 {"type": "entity", "entity": entity_id}
                 for entity_id in (
@@ -101,6 +128,7 @@ def build_dashboard(hass: HomeAssistant) -> dict[str, Any]:
             for zone in controller.get("zones", []):
                 zone_id = zone["id"]
                 name = device_name(
+                    coordinator,
                     f"{serial}_zone_{zone_id}",
                     zone_device_name(controller_name, zone.get("name"), zone.get("valve")),
                 )

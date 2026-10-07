@@ -5,3 +5,4 @@ __pycache__/
 # Local HA instance state (accounts, database, logs)
 dev/config/
 dev/local-token.txt
+.ruff_cache/

@@ -4,10 +4,8 @@ from __future__ import annotations
 
 from homeassistant.components.button import ButtonEntity
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .api import GraasCommandError, GraasError
 from .coordinator import GraasConfigEntry, GraasCoordinator
 from .entity import GraasEntity
 
@@ -28,10 +26,4 @@ class GraasStopAll(GraasEntity, ButtonEntity):
         super().__init__(coordinator, device_id, "stop_all")
 
     async def async_press(self) -> None:
-        try:
-            await self.coordinator.api.async_stop_all(self._device_id)
-        except GraasCommandError as err:
-            raise HomeAssistantError(str(err)) from err
-        except GraasError as err:
-            raise HomeAssistantError(f"GRAAS is unreachable: {err}") from err
-        await self.coordinator.async_request_refresh()
+        await self._command(self.coordinator.api.async_stop_all(self._device_id))

@@ -16,9 +16,9 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.graas.api import GraasCommandError
 from custom_components.graas.const import DOMAIN
 
-SKIP = "zone_1685_skip_next_run"
-DELAY = "device_graas-209ba960ad38_rain_delay"
-PAUSED_UNTIL = "device_graas-209ba960ad38_paused_until"
+SKIP = "zone_101_skip_next_run"
+DELAY = "device_graas-0000000000a1_rain_delay"
+PAUSED_UNTIL = "device_graas-0000000000a1_paused_until"
 
 
 async def _setup(hass: HomeAssistant, entry: MockConfigEntry) -> None:
@@ -40,7 +40,7 @@ async def test_scheduled_zones_get_a_skip_next_run_switch(
 
     assert hass.states.get(_eid(hass, "switch", SKIP)).state == "off"
     # Beds has no schedule: nothing to skip.
-    assert er.async_get(hass).async_get_entity_id("switch", DOMAIN, "zone_1686_skip_next_run") is None
+    assert er.async_get(hass).async_get_entity_id("switch", DOMAIN, "zone_102_skip_next_run") is None
 
 
 async def test_turning_the_switch_on_skips_and_off_cancels(
@@ -50,9 +50,9 @@ async def test_turning_the_switch_on_skips_and_off_cancels(
     entity_id = _eid(hass, "switch", SKIP)
 
     await hass.services.async_call("switch", "turn_on", {"entity_id": entity_id}, blocking=True)
-    mock_api["skip"].assert_awaited_once_with(1685)
+    mock_api["skip"].assert_awaited_once_with(101)
     await hass.services.async_call("switch", "turn_off", {"entity_id": entity_id}, blocking=True)
-    mock_api["unskip"].assert_awaited_once_with(1685)
+    mock_api["unskip"].assert_awaited_once_with(101)
 
 
 async def test_a_skipped_zone_shows_until_when(
@@ -120,9 +120,7 @@ async def test_a_refused_skip_is_shown_to_the_user(
     await _setup(hass, config_entry)
 
     with pytest.raises(HomeAssistantError, match="no upcoming run"):
-        await hass.services.async_call(
-            "switch", "turn_on", {"entity_id": _eid(hass, "switch", SKIP)}, blocking=True
-        )
+        await hass.services.async_call("switch", "turn_on", {"entity_id": _eid(hass, "switch", SKIP)}, blocking=True)
 
 
 async def test_the_dashboard_has_the_holds(

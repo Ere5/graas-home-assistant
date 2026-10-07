@@ -6,11 +6,10 @@ from typing import Any
 
 from homeassistant.components.valve import ValveDeviceClass, ValveEntity, ValveEntityFeature
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .api import GraasCommandError, GraasError
-from .const import DEFAULT_RUN_MINUTES
+from .const import DEFAULT_RUN_MINUTES, DOMAIN, MAX_RUN_LITERS
 from .coordinator import GraasConfigEntry, GraasCoordinator
 from .entity import GraasZoneEntity
 
@@ -64,11 +63,23 @@ class GraasZoneValve(GraasZoneEntity, ValveEntity):
     async def async_close_valve(self) -> None:
         await self._command(self.coordinator.api.async_stop_zone(self._zone_id))
 
-    async def _command(self, call: Any) -> None:
-        try:
-            await call
-        except GraasCommandError as err:
-            raise HomeAssistantError(str(err)) from err
-        except GraasError as err:
-            raise HomeAssistantError(f"GRAAS is unreachable: {err}") from err
-        await self.coordinator.async_request_refresh()
+    async def async_start_zone(self, duration_minutes: int | None = None, liters: float | None = None) -> None:
+        """graas.start_zone: a run of the given minutes or litres (exactly one, checked by the schema)."""
+        if liters is not None and (self.device_data.get("capabilities") or {}).get("litersPerPlant"):
+            # Irigator: the amount is per plant, so the run is litres × plants.
+            plants = self.zone_data.get("plantCount")
+            plants = max(1, int(plants)) if isinstance(plants, (int, float)) else 1
+            if liters * plants > MAX_RUN_LITERS:
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN,
+                    translation_key="too_many_liters",
+                    translation_placeholders={
+                        "liters": f"{liters:g}",
+                        "plants": str(plants),
+                        "total": f"{liters * plants:g}",
+                        "max": str(MAX_RUN_LITERS),
+                    },
+                )
+        await self._command(
+            self.coordinator.api.async_start_zone(self._zone_id, duration_minutes=duration_minutes, liters=liters)
+        )

@@ -18,4 +18,11 @@ start_zone:
           step: 0.1
           unit_of_measurement: L
 
+stop_all:
+  target:
+    device:
+      integration: graas
+    entity:
+      integration: graas
+
 dashboard:
