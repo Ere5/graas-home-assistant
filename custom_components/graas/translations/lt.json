@@ -1,0 +1,152 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Prijungti GRAAS",
+        "description": "GRAAS programėlėje atidarykite Nustatymai → Home Assistant, sukurkite raktą ir įklijuokite jį čia. Raktas rodomas tik vieną kartą.",
+        "data": {
+          "api_token": "API raktas"
+        },
+        "data_description": {
+          "api_token": "Prasideda graas_pat_"
+        },
+        "sections": {
+          "advanced": {
+            "name": "Išplėstiniai",
+            "data": {
+              "api_url": "GRAAS serveris"
+            },
+            "data_description": {
+              "api_url": "Nekeiskite. Tik kūrimo ar testavimo serveriams."
+            }
+          }
+        }
+      },
+      "reauth_confirm": {
+        "title": "GRAAS raktas nebegalioja",
+        "description": "Raktas buvo atšauktas arba pakeistas GRAAS programėlėje. Sukurkite naują ir įklijuokite jį čia.",
+        "data": {
+          "api_token": "API raktas"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "GRAAS nepriėmė šio rakto. Galbūt jis atšauktas.",
+      "invalid_token_format": "GRAAS raktas prasideda graas_pat_.",
+      "cannot_connect": "Nepavyko susisiekti su GRAAS. Patikrinkite interneto ryšį ir bandykite dar kartą."
+    },
+    "abort": {
+      "already_configured": "Ši GRAAS paskyra jau pridėta.",
+      "reauth_successful": "Naujas raktas veikia.",
+      "wrong_account": "Šis raktas priklauso kitai GRAAS paskyrai."
+    }
+  },
+  "entity": {
+    "valve": {
+      "zone": {
+        "name": "Zona"
+      }
+    },
+    "number": {
+      "run_time": {
+        "name": "Laistymo trukmė"
+      },
+      "rain_delay": {
+        "name": "Lietaus pauzė"
+      }
+    },
+    "button": {
+      "stop_all": {
+        "name": "Sustabdyti visas zonas"
+      }
+    },
+    "binary_sensor": {
+      "online": {
+        "name": "Prisijungęs"
+      },
+      "rain_postponed": {
+        "name": "Atidėta dėl lietaus"
+      }
+    },
+    "sensor": {
+      "air_temperature": {
+        "name": "Oro temperatūra"
+      },
+      "air_humidity": {
+        "name": "Oro drėgmė"
+      },
+      "soil_temperature": {
+        "name": "Dirvos temperatūra"
+      },
+      "water_pressure": {
+        "name": "Vandens slėgis"
+      },
+      "wind_speed": {
+        "name": "Vėjo greitis"
+      },
+      "signal_strength": {
+        "name": "Signalo stiprumas"
+      },
+      "last_seen": {
+        "name": "Paskutinį kartą matytas"
+      },
+      "soil_moisture": {
+        "name": "Dirvos drėgmė"
+      },
+      "zone_soil_temperature": {
+        "name": "Dirvos temperatūra"
+      },
+      "soil_ec": {
+        "name": "Dirvos EC"
+      },
+      "soil_ph": {
+        "name": "Dirvos pH"
+      },
+      "flow_rate": {
+        "name": "Vandens srautas"
+      },
+      "last_irrigation": {
+        "name": "Paskutinis laistymas"
+      },
+      "watering_ends": {
+        "name": "Laistymas baigsis"
+      },
+      "next_run": {
+        "name": "Kitas laistymas"
+      },
+      "paused_until": {
+        "name": "Laistymas sustabdytas iki"
+      }
+    },
+    "switch": {
+      "skip_next_run": {
+        "name": "Praleisti kitą laistymą",
+        "state_attributes": {
+          "skip_until": {
+            "name": "Praleista iki"
+          }
+        }
+      }
+    }
+  },
+  "services": {
+    "start_zone": {
+      "name": "Paleisti zoną",
+      "description": "Laistyti GRAAS zonas nurodytą laiką arba kiekį. Laistymas visada baigiasi pats.",
+      "fields": {
+        "duration_minutes": {
+          "name": "Minutės",
+          "description": "Kiek laiko laistyti (1–120). Naudokite tai arba litrus."
+        },
+        "liters": {
+          "name": "Litrai",
+          "description": "Kiek vandens (reikia srauto matuoklio, iki 2000). Irigator valdikliuose – vienam augalui. Naudokite tai arba minutes."
+        }
+      }
+    },
+    "dashboard": {
+      "name": "Valdymo skydelis",
+      "description": "Sukuria paruoštą laistymo valdymo skydelį iš jūsų GRAAS valdiklių ir zonų. Nukopijuokite yaml iš atsakymo į naują skydelį (Redaguoti → ⋮ → Neapdorotos konfigūracijos redaktorius)."
+    }
+  }
+}

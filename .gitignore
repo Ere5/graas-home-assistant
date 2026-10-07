@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+# Local HA instance state (accounts, database, logs)
+dev/config/
+dev/local-token.txt

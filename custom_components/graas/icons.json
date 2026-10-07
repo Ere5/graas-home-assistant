@@ -1,0 +1,84 @@
+{
+  "entity": {
+    "valve": {
+      "zone": {
+        "default": "mdi:sprinkler",
+        "state": {
+          "open": "mdi:sprinkler-variant"
+        }
+      }
+    },
+    "number": {
+      "run_time": {
+        "default": "mdi:timer-outline"
+      },
+      "rain_delay": {
+        "default": "mdi:weather-pouring"
+      }
+    },
+    "button": {
+      "stop_all": {
+        "default": "mdi:stop-circle-outline"
+      }
+    },
+    "binary_sensor": {
+      "online": {
+        "default": "mdi:wifi",
+        "state": {
+          "off": "mdi:wifi-off"
+        }
+      },
+      "rain_postponed": {
+        "default": "mdi:weather-rainy",
+        "state": {
+          "off": "mdi:weather-partly-cloudy"
+        }
+      }
+    },
+    "sensor": {
+      "last_irrigation": {
+        "default": "mdi:history"
+      },
+      "last_seen": {
+        "default": "mdi:clock-check-outline"
+      },
+      "soil_moisture": {
+        "default": "mdi:water-percent"
+      },
+      "soil_ec": {
+        "default": "mdi:flash-outline"
+      },
+      "flow_rate": {
+        "default": "mdi:water-pump"
+      },
+      "water_pressure": {
+        "default": "mdi:gauge"
+      },
+      "watering_ends": {
+        "default": "mdi:timer-sand"
+      },
+      "next_run": {
+        "default": "mdi:calendar-clock"
+      },
+      "paused_until": {
+        "default": "mdi:timer-pause-outline"
+      }
+    },
+    "switch": {
+      "skip_next_run": {
+        "default": "mdi:skip-next-circle-outline",
+        "state": {
+          "on": "mdi:skip-next-circle"
+        }
+      }
+    }
+  },
+  "services": {
+    "start_zone": {
+      "service": "mdi:sprinkler-variant"
+    },
+    "dashboard": {
+      "service": "mdi:view-dashboard-outline"
+    }
+  }
+}

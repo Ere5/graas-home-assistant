@@ -1,0 +1,152 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect GRAAS",
+        "description": "In the GRAAS app open Settings → Home Assistant, create a token and paste it here. The token is shown only once.",
+        "data": {
+          "api_token": "API token"
+        },
+        "data_description": {
+          "api_token": "Starts with graas_pat_"
+        },
+        "sections": {
+          "advanced": {
+            "name": "Advanced",
+            "data": {
+              "api_url": "GRAAS server"
+            },
+            "data_description": {
+              "api_url": "Leave as is. Only for development or testing servers."
+            }
+          }
+        }
+      },
+      "reauth_confirm": {
+        "title": "GRAAS token no longer works",
+        "description": "The token was revoked or replaced in the GRAAS app. Create a new one there and paste it here.",
+        "data": {
+          "api_token": "API token"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "GRAAS did not accept this token. It may have been revoked.",
+      "invalid_token_format": "A GRAAS token starts with graas_pat_.",
+      "cannot_connect": "Could not reach GRAAS. Check the internet connection and try again."
+    },
+    "abort": {
+      "already_configured": "This GRAAS account is already added.",
+      "reauth_successful": "The new token works.",
+      "wrong_account": "This token belongs to a different GRAAS account."
+    }
+  },
+  "entity": {
+    "valve": {
+      "zone": {
+        "name": "Zone"
+      }
+    },
+    "number": {
+      "run_time": {
+        "name": "Run time"
+      },
+      "rain_delay": {
+        "name": "Rain delay"
+      }
+    },
+    "button": {
+      "stop_all": {
+        "name": "Stop all zones"
+      }
+    },
+    "binary_sensor": {
+      "online": {
+        "name": "Online"
+      },
+      "rain_postponed": {
+        "name": "Rain postponed"
+      }
+    },
+    "sensor": {
+      "air_temperature": {
+        "name": "Air temperature"
+      },
+      "air_humidity": {
+        "name": "Air humidity"
+      },
+      "soil_temperature": {
+        "name": "Soil temperature"
+      },
+      "water_pressure": {
+        "name": "Water pressure"
+      },
+      "wind_speed": {
+        "name": "Wind speed"
+      },
+      "signal_strength": {
+        "name": "Signal strength"
+      },
+      "last_seen": {
+        "name": "Last seen"
+      },
+      "soil_moisture": {
+        "name": "Soil moisture"
+      },
+      "zone_soil_temperature": {
+        "name": "Soil temperature"
+      },
+      "soil_ec": {
+        "name": "Soil EC"
+      },
+      "soil_ph": {
+        "name": "Soil pH"
+      },
+      "flow_rate": {
+        "name": "Flow rate"
+      },
+      "last_irrigation": {
+        "name": "Last watered"
+      },
+      "watering_ends": {
+        "name": "Watering ends"
+      },
+      "next_run": {
+        "name": "Next run"
+      },
+      "paused_until": {
+        "name": "Watering paused until"
+      }
+    },
+    "switch": {
+      "skip_next_run": {
+        "name": "Skip next run",
+        "state_attributes": {
+          "skip_until": {
+            "name": "Skipped until"
+          }
+        }
+      }
+    }
+  },
+  "services": {
+    "start_zone": {
+      "name": "Start zone",
+      "description": "Water GRAAS zones for a time or a volume. Runs always end on their own.",
+      "fields": {
+        "duration_minutes": {
+          "name": "Minutes",
+          "description": "How long to water (1–120). Use this or litres."
+        },
+        "liters": {
+          "name": "Litres",
+          "description": "How much water (needs a flow meter, up to 2000). On Irigator controllers this is per plant. Use this or minutes."
+        }
+      }
+    },
+    "dashboard": {
+      "name": "Dashboard",
+      "description": "Builds a ready-made watering dashboard from your GRAAS controllers and zones. Copy the yaml from the response into a new dashboard (Edit → ⋮ → Raw configuration editor)."
+    }
+  }
+}
