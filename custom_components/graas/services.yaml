@@ -20,8 +20,6 @@ start_zone:
 
 stop_all:
   target:
-    device:
-      integration: graas
     entity:
       integration: graas
 
