@@ -1,6 +1,6 @@
 # Local Home Assistant for developing the GRAAS integration.
 #
-#   docker compose -f home-assistant/dev/compose.yaml up -d
+#   docker compose -f dev/compose.yaml up -d
 #   open http://localhost:8123
 #
 # Our integration is mounted live from ../custom_components (restart the
