@@ -14,7 +14,7 @@ Every zone becomes a water valve you can open, close and automate. Sensors, sche
 ## Features
 
 - 💧 **Zones as valves.** Open a zone to water for its run time, close it to stop. Every run ends on its own.
-- ⏱️ **Run time per zone.** Set how long "open" waters (1–120 min).
+- ⏱️ **Run time per zone.** Set how long "open" waters (1–300 min).
 - 🌧️ **Rain delay.** Pause all scheduled watering on a controller for 1–14 days.
 - ⏭️ **Skip next run.** Skip one zone's next scheduled run.
 - 🛑 **Stop all.** One button stops every zone on a controller.
@@ -116,7 +116,7 @@ Each **controller** is a device, and **each zone is its own device** linked to i
 
 | Entity | Description |
 |---|---|
-| Online | Whether the controller is connected |
+| Online | Whether the controller is connected (a diagnostic entity) |
 | Stop all zones | Button that stops every zone on this controller |
 | Rain delay | 0–14 days (0 = off). Scheduled runs are skipped until it ends |
 | Watering paused until | When the rain delay ends |
@@ -127,8 +127,8 @@ Each **controller** is a device, and **each zone is its own device** linked to i
 
 | Entity | Description |
 |---|---|
-| *Zone name* (valve) | Open = water for the run time, close = stop |
-| Run time | How long "open" waters, 1–120 min. Starts at the zone's schedule length (otherwise 15 min) |
+| *Zone name* (valve) | Open = water for the run time, close = stop. Shows *Opening* / *Closing* until the controller confirms (up to a minute) |
+| Run time | How long "open" waters, 1–300 min. Starts at the zone's schedule length (otherwise 15 min) |
 | Skip next run | Skips the next scheduled run, then turns itself off. Only on zones with a schedule or program |
 | Watering ends | When the current run ends |
 | Next run / Last watered | As shown in the GRAAS app |
@@ -148,9 +148,9 @@ action: graas.start_zone
 target:
   entity_id: valve.front_yard_lawn
 data:
-  duration_minutes: 10   # 1–120
+  duration_minutes: 10   # 1–300
   # or
-  # liters: 40           # 0.1–2000, needs a flow meter
+  # liters: 40           # 0.1–1000, needs a flow meter
 ```
 
 You can target valves, zone devices, areas or labels. Every GRAAS valve in the target starts.
@@ -219,7 +219,7 @@ automation:
 
 - Every run started from Home Assistant has an end (a time or an amount). Open-ended watering is not possible.
 - Starts go through the same checks as the GRAAS app: the controller must be online, and only one zone waters at a time. If you start a zone while another runs, the controller queues it.
-- On Irigator controllers a litres amount is per plant. The total (litres × plants) can't exceed 2000 L.
+- On Irigator controllers a litres amount is per plant. The total (litres × plants) can't exceed 1000 L.
 - Runs started from Home Assistant show in GRAAS history as **Home Assistant**.
 - Commands are limited to 30 per minute per token, so a broken automation can't flood your valves.
 - Revoke the token in the GRAAS app at any time, and Home Assistant loses access immediately.
@@ -238,8 +238,11 @@ Nothing is sent anywhere else.
 | "Re-authentication required" | The token was revoked, or you changed or reset your GRAAS password (that signs out every device and token). Create a new token in the app and enter it |
 | "Too many requests" | More than 30 commands a minute were sent. Check your automations for loops. It recovers on its own after a minute |
 | Valves show **Unavailable** | The controller is offline. Check its power and connection in the GRAAS app |
-| Can't open valves, but sensors work | The token is read-only. Create a token with **Control** |
-| A new controller or zone is missing | Reload the integration: **Settings → Devices & services → GRAAS Irrigation → ⋮ → Reload** |
+| Can't open valves, but sensors work | The token is read-only. Create a token with **Control** and enter it under **⋮ → Reconfigure** |
+| A new controller or zone is missing | It appears within 30 seconds. If not, reload the integration: **Settings → Devices & services → GRAAS Irrigation → ⋮ → Reload** |
+| A removed controller or zone is still listed | It goes after two refreshes in a row without it (about a minute). If GRAAS suddenly reports no controllers at all, nothing is removed until it reports some again. You can also delete it on its device page (**⋮ → Delete**) |
+| Change the token or the server | **Settings → Devices & services → GRAAS Irrigation → ⋮ → Reconfigure** |
+| The same controller is in two GRAAS accounts | Add both accounts if you like: the controller shows up once, under the account that owns it; if neither (or both) owns it, under the account added first. It stays there while that account is loaded, starting or retrying, and moves only if that account is disabled, fails or is removed |
 | Something else | Download diagnostics (**⋮ → Download diagnostics**) and attach it to an [issue][issues] |
 
 State is refreshed every 30 seconds, and straight after each command.

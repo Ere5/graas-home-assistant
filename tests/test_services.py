@@ -111,7 +111,7 @@ async def test_start_zone_shows_a_refusal(
     await _setup(hass, config_entry)
     mock_api["start"].side_effect = GraasCommandError("Device is offline", "device_offline")
 
-    with pytest.raises(HomeAssistantError, match="Device is offline"):
+    with pytest.raises(HomeAssistantError, match="controller is offline"):
         await hass.services.async_call(
             DOMAIN,
             "start_zone",
@@ -283,7 +283,7 @@ async def test_a_token_without_read_scope_asks_for_a_new_one(
     assert [f["context"]["source"] for f in hass.config_entries.flow.async_progress()] == ["reauth"]
 
 
-@pytest.mark.parametrize(("plants", "liters", "allowed"), [(3, 600, True), (3, 700, False), (None, 2000, True)])
+@pytest.mark.parametrize(("plants", "liters", "allowed"), [(3, 300, True), (3, 400, False), (None, 1000, True)])
 async def test_litres_per_plant_are_checked_against_the_limit(
     hass: HomeAssistant,
     mock_api: dict[str, AsyncMock],
@@ -293,7 +293,7 @@ async def test_litres_per_plant_are_checked_against_the_limit(
     liters: float,
     allowed: bool,
 ) -> None:
-    """On an Irigator, litres are per plant: the whole run (litres × plants) must stay within 2000 L."""
+    """On an Irigator, litres are per plant: the whole run (litres × plants) must stay within 1000 L."""
     state["devices"][0]["capabilities"]["litersPerPlant"] = True
     state["devices"][0]["zones"][0]["plantCount"] = plants
     await _setup(hass, config_entry)
@@ -316,7 +316,7 @@ async def test_litres_are_not_multiplied_on_other_controllers(
     await _setup(hass, config_entry)
 
     await hass.services.async_call(
-        DOMAIN, "start_zone", {"entity_id": _eid(hass, "valve", "zone_101_valve"), "liters": 1500}, blocking=True
+        DOMAIN, "start_zone", {"entity_id": _eid(hass, "valve", "zone_101_valve"), "liters": 900}, blocking=True
     )
 
     mock_api["start"].assert_awaited_once()
@@ -332,3 +332,97 @@ async def test_a_server_validation_error_is_shown(
         await hass.services.async_call(
             DOMAIN, "start_zone", {"entity_id": _eid(hass, "valve", "zone_101_valve"), "liters": 50}, blocking=True
         )
+
+
+# --- stop_all keeps going past a failing controller -------------------------------------------
+
+
+async def test_stop_all_tries_every_controller_and_names_the_ones_that_failed(
+    hass: HomeAssistant, mock_api: dict[str, AsyncMock], config_entry: MockConfigEntry, state: dict[str, Any]
+) -> None:
+    _add_second_controller(state)
+    await _setup(hass, config_entry)
+
+    async def stop_all(device_id: int) -> None:
+        if device_id == 7:
+            raise GraasError("Cannot reach GRAAS: boom")
+
+    mock_api["stop_all"].side_effect = stop_all
+
+    with pytest.raises(HomeAssistantError) as err:
+        await hass.services.async_call(DOMAIN, "stop_all", {}, blocking=True)
+
+    # The second controller still got its stop, after the first one failed.
+    assert sorted(call.args[0] for call in mock_api["stop_all"].await_args_list) == [7, 8]
+    assert err.value.translation_key == "stop_all_failed"
+    assert err.value.translation_placeholders["failed"] == "1"
+    assert err.value.translation_placeholders["total"] == "2"
+    assert "Garden" in str(err.value)
+    assert "Greenhouse" not in str(err.value)
+
+
+async def test_stop_all_on_one_controller_keeps_its_own_error(
+    hass: HomeAssistant, mock_api: dict[str, AsyncMock], config_entry: MockConfigEntry
+) -> None:
+    await _setup(hass, config_entry)
+    mock_api["stop_all"].side_effect = GraasRateLimitError("Too many requests.", "rate_limited", 60)
+
+    with pytest.raises(HomeAssistantError) as err:
+        await hass.services.async_call(DOMAIN, "stop_all", {}, blocking=True)
+
+    assert err.value.translation_key == "rate_limited"
+
+
+# --- the same controller through two GRAAS accounts ---------------------------------------------
+
+
+def _second_account_entry() -> MockConfigEntry:
+    return MockConfigEntry(
+        domain=DOMAIN,
+        title="GRAAS shared",
+        unique_id="43",
+        data={"api_token": "graas_pat_" + "c3" * 24, "api_url": "https://ss.graasautomation.com"},
+    )
+
+
+async def test_a_controller_two_accounts_see_is_provided_once(
+    hass: HomeAssistant,
+    mock_api: dict[str, AsyncMock],
+    config_entry: MockConfigEntry,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Owner and shared user both add GRAAS: the controller's entities exist once, under the older entry."""
+    shared = _second_account_entry()
+    await _setup(hass, config_entry)
+    await _setup(hass, shared)
+
+    assert shared.state is ConfigEntryState.LOADED
+    assert shared.runtime_data.data.devices == {}
+    registry = er.async_get(hass)
+    valve = registry.async_get(_eid(hass, "valve", "zone_101_valve"))
+    assert valve.config_entry_id == config_entry.entry_id
+    assert er.async_entries_for_config_entry(registry, shared.entry_id) == []
+    assert dr.async_entries_for_config_entry(dr.async_get(hass), shared.entry_id) == []
+    # Logged once, not on every poll.
+    await shared.runtime_data.async_refresh()
+    assert caplog.text.count("is provided by another GRAAS entry") == 1
+
+    # One stop per controller, not one per account.
+    await hass.services.async_call(DOMAIN, "stop_all", {}, blocking=True)
+    mock_api["stop_all"].assert_awaited_once_with(7)
+
+
+async def test_the_other_account_takes_over_when_the_first_is_removed(
+    hass: HomeAssistant, mock_api: dict[str, AsyncMock], config_entry: MockConfigEntry
+) -> None:
+    shared = _second_account_entry()
+    await _setup(hass, config_entry)
+    await _setup(hass, shared)
+
+    assert await hass.config_entries.async_remove(config_entry.entry_id)
+    await shared.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+
+    valve = er.async_get(hass).async_get(_eid(hass, "valve", "zone_101_valve"))
+    assert valve.config_entry_id == shared.entry_id
+    assert hass.states.get(valve.entity_id).state == "closed"

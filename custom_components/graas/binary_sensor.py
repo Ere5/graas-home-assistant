@@ -2,40 +2,56 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
+from homeassistant.const import EntityCategory, Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .coordinator import GraasConfigEntry, GraasCoordinator
-from .entity import GraasEntity, GraasZoneEntity
+from .coordinator import GraasConfigEntry, GraasCoordinator, GraasData
+from .entity import GraasEntity, GraasZoneEntity, async_add_entities_dynamically
+
+# Read-only: entities only read the coordinator's data.
+PARALLEL_UPDATES = 0
 
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: GraasConfigEntry, async_add_entities: AddConfigEntryEntitiesCallback
 ) -> None:
     coordinator = entry.runtime_data
-    entities: list[BinarySensorEntity] = [GraasOnline(coordinator, d) for d in coordinator.data.devices]
-    # Only zones where rain postponement exists and is on (lawncare family).
-    rain_zones = [z for z, zone in coordinator.data.zones.items() if zone.get("rainPostponeEnabled")]
-    entities += [GraasRainPostponed(coordinator, zone_id) for zone_id in rain_zones]
-    async_add_entities(entities)
 
-    # Drop rain sensors this entry no longer provides (feature turned off, or
-    # created by an earlier version for a type without it), so they don't
-    # linger as "Unavailable".
-    wanted = {f"zone_{zone_id}_rain_postponed" for zone_id in rain_zones}
-    registry = er.async_get(hass)
-    for entry_ in er.async_entries_for_config_entry(registry, entry.entry_id):
-        is_rain = entry_.domain == "binary_sensor" and entry_.unique_id.endswith("_rain_postponed")
-        if is_rain and entry_.unique_id not in wanted:
-            registry.async_remove(entry_.entity_id)
+    def candidates(data: GraasData) -> dict[str, Callable[[], BinarySensorEntity]]:
+        found: dict[str, Callable[[], BinarySensorEntity]] = {
+            f"device_{device['deviceId']}_online": lambda device_id=device_id: GraasOnline(coordinator, device_id)
+            for device_id, device in data.devices.items()
+        }
+        # Only zones where rain postponement exists and is on (lawncare family).
+        for zone_id, zone in data.zones.items():
+            if zone.get("rainPostponeEnabled"):
+                found[f"zone_{zone_id}_rain_postponed"] = lambda zone_id=zone_id: GraasRainPostponed(
+                    coordinator, zone_id
+                )
+        return found
+
+    # Rain sensors this entry no longer provides (feature turned off, or created
+    # by an earlier version for a type without it) are dropped, so they don't
+    # linger as "Unavailable"; turned on again, the sensor comes back.
+    async_add_entities_dynamically(
+        hass,
+        entry,
+        async_add_entities,
+        Platform.BINARY_SENSOR,
+        candidates,
+        removable=lambda unique_id: unique_id.endswith("_rain_postponed"),
+    )
 
 
 class GraasOnline(GraasEntity, BinarySensorEntity):
     """Whether the controller is connected to GRAAS (stays available while offline)."""
 
     _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_translation_key = "online"
 
     def __init__(self, coordinator: GraasCoordinator, device_id: int) -> None:

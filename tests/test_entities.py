@@ -17,6 +17,8 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.graas.api import GraasAuthError, GraasCommandError
 from custom_components.graas.const import DEFAULT_RUN_MINUTES, DOMAIN
 
+from .conftest import find_device
+
 
 async def _setup(hass: HomeAssistant, entry: MockConfigEntry) -> None:
     entry.add_to_hass(hass)
@@ -125,13 +127,15 @@ async def test_stop_all_button(
 async def test_a_refused_command_is_shown_to_the_user(
     hass: HomeAssistant, mock_api: dict[str, AsyncMock], config_entry: MockConfigEntry
 ) -> None:
+    """A refusal without a known code shows GRAAS's own words."""
     await _setup(hass, config_entry)
-    mock_api["start"].side_effect = GraasCommandError("Device is offline", "device_offline")
+    mock_api["start"].side_effect = GraasCommandError("Something new went wrong", "some_future_code")
 
-    with pytest.raises(HomeAssistantError, match="Device is offline"):
+    with pytest.raises(HomeAssistantError, match="Something new went wrong") as err:
         await hass.services.async_call(
             "valve", "open_valve", {"entity_id": _entity_id(hass, "valve", "zone_101_valve")}, blocking=True
         )
+    assert err.value.translation_key == "command_refused"
 
 
 @pytest.mark.parametrize(
@@ -153,7 +157,7 @@ async def test_start_zone_service(
     mock_api["start"].assert_awaited_with(101, **expected)
 
 
-@pytest.mark.parametrize("data", [{}, {"duration_minutes": 10, "liters": 5}, {"duration_minutes": 121}])
+@pytest.mark.parametrize("data", [{}, {"duration_minutes": 10, "liters": 5}, {"duration_minutes": 301}])
 async def test_start_zone_service_only_takes_one_bounded_amount(
     hass: HomeAssistant, mock_api: dict[str, AsyncMock], config_entry: MockConfigEntry, data: dict
 ) -> None:
@@ -229,6 +233,10 @@ async def test_entities_that_no_longer_apply_are_removed(
 
     assert await hass.config_entries.async_setup(config_entry.entry_id)
     await hass.async_block_till_done()
+    # Gone after two polls in a row without it, not after one.
+    assert registry.async_get(stale.entity_id) is not None
+    await config_entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
 
     assert registry.async_get(stale.entity_id) is None
     # The zone that still has it keeps its sensor.
@@ -240,10 +248,9 @@ async def test_each_zone_is_its_own_device_under_the_controller(
 ) -> None:
     state["devices"][0]["zones"][1]["name"] = "Zone 2"  # a default name, as most zones have
     await _setup(hass, config_entry)
-    devices = dr.async_get(hass)
-    controller = devices.async_get_device(identifiers={(DOMAIN, "graas-0000000000a1")})
-    lawn = devices.async_get_device(identifiers={(DOMAIN, "graas-0000000000a1_zone_101")})
-    beds = devices.async_get_device(identifiers={(DOMAIN, "graas-0000000000a1_zone_102")})
+    controller = find_device(hass, "graas-0000000000a1")
+    lawn = find_device(hass, "graas-0000000000a1_zone_101")
+    beds = find_device(hass, "graas-0000000000a1_zone_102")
 
     assert lawn is not None and beds is not None
     assert lawn.via_device_id == controller.id
@@ -354,8 +361,7 @@ async def test_devices_are_registered_without_the_deprecated_via_device(
 
     assert calls
     assert all("via_device" not in kwargs for kwargs in calls)
-    devices = dr.async_get(hass)
-    controller = devices.async_get_device(identifiers={(DOMAIN, "graas-0000000000a1")})
+    controller = find_device(hass, "graas-0000000000a1")
     for zone_id in (101, 102):
-        zone = devices.async_get_device(identifiers={(DOMAIN, f"graas-0000000000a1_zone_{zone_id}")})
+        zone = find_device(hass, f"graas-0000000000a1_zone_{zone_id}")
         assert zone.via_device_id == controller.id

@@ -11,7 +11,19 @@ from homeassistant.core import HomeAssistant
 
 from .coordinator import GraasConfigEntry
 
-TO_REDACT = {CONF_API_TOKEN}
+# The token, and what identifies the account, its controllers or its owner.
+TO_REDACT = {
+    CONF_API_TOKEN,
+    "account",
+    "account_id",
+    "deviceId",
+    "serialNumber",
+    "serial_number",
+    "email",
+    "name",
+    "title",
+    "unique_id",
+}
 
 
 async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: GraasConfigEntry) -> dict[str, Any]:
@@ -19,5 +31,5 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: GraasCo
     return {
         "entry": async_redact_data(dict(entry.data), TO_REDACT),
         "run_minutes": coordinator.run_minutes,
-        "data": asdict(coordinator.data) if coordinator.data else None,
+        "data": async_redact_data(asdict(coordinator.data), TO_REDACT) if coordinator.data else None,
     }

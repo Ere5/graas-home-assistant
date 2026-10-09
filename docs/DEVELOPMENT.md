@@ -33,8 +33,18 @@ Home Assistant ──HTTPS──▶ GRAAS cloud API (/api/ha/*) ──MQTT──
 ### Device and entity layout
 
 - One HA device per controller, identifier `(graas, <device serial>)`.
-- One HA device per zone, identifier `(graas, zone_<zone id>)`, linked to its controller with `via_device`.
+- One HA device per zone, identifier `(graas, <device serial>_zone_<zone id>)`, linked to its controller with `via_device_id`.
 - `unique_id`s are built from the GRAAS device serial or the zone id. **Never change their format**: that would orphan entities in existing installs.
+- Entities and devices follow the poll: a new controller, zone, sensor reading, schedule (skip switch) or rain postponement gets its entities without a reload; a controller or zone GRAAS no longer reports loses its device after `MISSING_POLLS_BEFORE_REMOVAL` (2) successful polls in a row without it; optional entities (`removable` in `async_add_entities_dynamically`, e.g. the skip switch) follow the same rule. A poll with no controllers at all, after this entry had some, removes nothing (logged once) until GRAAS reports controllers again. Failed polls never count. `async_remove_config_entry_device` lets users delete devices GRAAS no longer reports.
+- A controller seen by two accounts (owner and shared user, two config entries) is provided by one entry only, so entity `unique_id`s stay unique. Precedence per controller, never decided by which poll returns first: the entry whose `/state` has `isOwner: true` for it, then the oldest entry (`created_at`), then the lowest `entry_id`. An entry yields only to a higher-precedence entry that reports the controller or has not polled yet (starting, reloading or in setup retry: it may still report it, possibly as owner); disabled or failed entries (setup error, auth failure) do not count. When a higher-precedence entry picks up a controller a lower one provides, the lower one lets go on its next poll (its devices go at once, no grace) and the higher one takes it on its following poll; the controller then stays there. Device ids change only on such a move.
+- After a valve command the valve is optimistic (`opening` / `closing`) until a poll confirms it or 60 s pass; the coordinator is polled again 5 s and 15 s after the command.
+
+### Config entry
+
+- `unique_id`: the account id for the default server (unchanged since 0.1); `<account id>@<host>` for another server. Older entries for another server get the host added at setup.
+- Title: the account's e-mail or name when `/state` sends one, otherwise "GRAAS" (plus the host for another server).
+- The server URL must be `https://`, except a local development server (localhost, private IP, single-label or `.local`/`.internal` name), where `http://` is allowed.
+- Reconfigure (**⋮ → Reconfigure**) changes the server or the token, for the same account. Account ids are per server, so moving to another host also needs the account's e-mail or name from `/state` to match the entry's title (without the host suffix); a server that sends neither cannot be moved to. The title is rebuilt for the new host. Reauth always stays on the entry's own server, so the account id is enough there.
 
 ## API used
 
@@ -43,22 +53,23 @@ Base URL: `https://ss.graasautomation.com`. Override it in the config flow (Adva
 | Method | Path | Scope | Purpose |
 |---|---|---|---|
 | GET | `/api/ha/state` | read | Account, controllers, zones, sensors, holds in one call |
-| POST | `/api/ha/zones/{id}/start` | control | Body `{"durationMinutes": 1–120}` **or** `{"liters": 0.1–2000}` |
+| POST | `/api/ha/zones/{id}/start` | control | Body `{"durationMinutes": 1–300}` **or** `{"liters": 0.1–1000}` (server `IrrigationLimits`, mirrored in `const.py`) |
 | POST | `/api/ha/zones/{id}/stop` | control | Stop one zone |
 | POST | `/api/ha/devices/{id}/stop-all` | control | Stop every zone on a controller |
 | POST / DELETE | `/api/ha/zones/{id}/skip-next` | control | Skip / un-skip the next scheduled run |
 | POST / DELETE | `/api/ha/devices/{id}/rain-delay` | control | Body `{"days": 1–14}` / clear |
 
-Errors use `{"error": {"code": "...", "message": "..."}}`.
+Errors use `{"error": {"code": "...", "message": "..."}}`. Known codes map to translated messages (`coordinator.py`, `_COMMAND_ERROR_KEYS`); unknown ones show the server's message.
 
 | Status | Meaning | What the integration does |
 |---|---|---|
 | 401 `invalid_api_token` | Token unknown or revoked, account pending deletion, or the user signed out everywhere (e.g. password reset) | Starts re-authentication |
 | 403 `api_token_no_read` | Token lacks the `read` scope, on `/state` | Starts re-authentication |
-| 403 | Token lacks the `control` scope, on commands | Raises an error |
+| 403 `api_token_read_only` | Token lacks the `control` scope, on commands | Raises a translated error |
 | 404 | Unknown id, or no access (same response for both) | Raises an error |
-| 409 | Device offline, or `no_next_run` for skip-next | Raises the server's message |
-| 422 `validation_failed` | Bad amount, e.g. litres × plants > 2000 on per-plant devices | Raises the server's message |
+| 409 | `device_offline`, `zone_already_running`, or `no_next_run` for skip-next | Raises a translated error |
+| 422 `validation_failed` | Bad amount, e.g. litres × plants > 1000 on per-plant devices | Raises the server's message |
+| 422 `litres_need_flow_meter` | Litres on a controller without a flow meter | Raises a translated error |
 | 429 `rate_limited` | 30 commands/min per token, or 20 failed logins/min per IP (with `Retry-After`) | Backs off; never re-auth |
 
 A start while another zone runs returns 201: the controller queues it and runs zones one at a time.
@@ -94,9 +105,10 @@ docker run --rm -v "$PWD":/app -w /app python:3.13 sh -c \
 
 `.github/workflows/validate.yml` runs on every push and pull request:
 
-- **HACS validation** (`hacs/action`)
-- **hassfest** (Home Assistant's manifest and translation checks)
-- **pytest**
+- **HACS validation** (`hacs/action`, pinned to a release commit)
+- **hassfest** (Home Assistant's manifest and translation checks, pinned to a commit)
+- **ruff** (`ruff check` and `ruff format --check`)
+- **pytest** (`pytest-homeassistant-custom-component` pinned in `requirements_test.txt`)
 
 ## Releasing
 

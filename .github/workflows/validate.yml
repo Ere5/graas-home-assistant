@@ -5,11 +5,15 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   hacs:
     runs-on: ubuntu-latest
     steps:
-      - uses: hacs/action@main
+      # hacs/action 22.5.0
+      - uses: hacs/action@d556e736723344f83838d08488c983a15381059a
         with:
           category: integration
           ignore: brands
@@ -18,7 +22,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: home-assistant/actions/hassfest@master
+      # home-assistant/actions has no maintained release tags for hassfest: pinned to a master commit (2026-09-27).
+      - uses: home-assistant/actions/hassfest@06749dd8c0b54f350bc69c8752456cee498808a3
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install "ruff==0.16.10"
+      - run: ruff check .
+      - run: ruff format --check .
 
   tests:
     runs-on: ubuntu-latest

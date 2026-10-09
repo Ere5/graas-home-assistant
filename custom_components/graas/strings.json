@@ -28,17 +28,31 @@
         "data": {
           "api_token": "API token"
         }
+      },
+      "reconfigure": {
+        "title": "Change GRAAS connection",
+        "description": "Change the GRAAS server or the API token. The token must belong to the same GRAAS account.",
+        "data": {
+          "api_url": "GRAAS server",
+          "api_token": "API token"
+        },
+        "data_description": {
+          "api_url": "Leave as is unless you use a development or testing server.",
+          "api_token": "Leave empty to keep the current token."
+        }
       }
     },
     "error": {
       "invalid_auth": "GRAAS did not accept this token. It may have been revoked.",
       "invalid_token_format": "A GRAAS token starts with graas_pat_.",
-      "cannot_connect": "Could not reach GRAAS. Check the internet connection and try again."
+      "cannot_connect": "Could not reach GRAAS. Check the internet connection and try again.",
+      "invalid_url": "Enter a full https:// address. Plain http:// works only for a server on your local network."
     },
     "abort": {
       "already_configured": "This GRAAS account is already added.",
       "reauth_successful": "The new token works.",
-      "wrong_account": "This token belongs to a different GRAAS account."
+      "wrong_account": "This token belongs to a different GRAAS account.",
+      "reconfigure_successful": "The GRAAS connection was updated."
     }
   },
   "entity": {
@@ -154,11 +168,11 @@
       "fields": {
         "duration_minutes": {
           "name": "Minutes",
-          "description": "How long to water (1–120). Use this or litres."
+          "description": "How long to water (1–300). Use this or litres."
         },
         "liters": {
           "name": "Litres",
-          "description": "How much water (needs a flow meter, up to 2000). On Irigator controllers this is per plant. Use this or minutes."
+          "description": "How much water (needs a flow meter, up to 1000). On Irigator controllers this is per plant. Use this or minutes."
         }
       }
     },
@@ -195,6 +209,30 @@
     },
     "too_many_liters": {
       "message": "{liters} L per plant × {plants} plants is {total} L; a run can be at most {max} L."
+    },
+    "stop_all_failed": {
+      "message": "{failed} of {total} GRAAS controllers did not stop: {controllers}"
+    },
+    "api_token_read_only": {
+      "message": "This GRAAS token can only read. In the GRAAS app create a token with control access, then reconfigure the integration with it."
+    },
+    "device_offline": {
+      "message": "The GRAAS controller is offline, so the zone can't be started."
+    },
+    "zone_already_running": {
+      "message": "This zone is already watering. Stop it first to start a new run."
+    },
+    "litres_need_flow_meter": {
+      "message": "This controller has no flow meter, so it can't measure litres. Use minutes instead."
+    },
+    "no_next_run": {
+      "message": "This zone has no scheduled run to skip."
+    },
+    "not_found": {
+      "message": "GRAAS no longer has this controller or zone for your account."
+    },
+    "validation_failed": {
+      "message": "GRAAS refused the values: {message}"
     }
   }
 }

@@ -28,17 +28,31 @@
         "data": {
           "api_token": "API raktas"
         }
+      },
+      "reconfigure": {
+        "title": "Keisti GRAAS ryšį",
+        "description": "Pakeiskite GRAAS serverį arba API raktą. Raktas turi priklausyti tai pačiai GRAAS paskyrai.",
+        "data": {
+          "api_url": "GRAAS serveris",
+          "api_token": "API raktas"
+        },
+        "data_description": {
+          "api_url": "Nekeiskite, nebent naudojate kūrimo ar testavimo serverį.",
+          "api_token": "Palikite tuščią, jei raktas nesikeičia."
+        }
       }
     },
     "error": {
       "invalid_auth": "GRAAS nepriėmė šio rakto. Galbūt jis atšauktas.",
       "invalid_token_format": "GRAAS raktas prasideda graas_pat_.",
-      "cannot_connect": "Nepavyko susisiekti su GRAAS. Patikrinkite interneto ryšį ir bandykite dar kartą."
+      "cannot_connect": "Nepavyko susisiekti su GRAAS. Patikrinkite interneto ryšį ir bandykite dar kartą.",
+      "invalid_url": "Įveskite visą https:// adresą. Paprastas http:// tinka tik serveriui jūsų vietiniame tinkle."
     },
     "abort": {
       "already_configured": "Ši GRAAS paskyra jau pridėta.",
       "reauth_successful": "Naujas raktas veikia.",
-      "wrong_account": "Šis raktas priklauso kitai GRAAS paskyrai."
+      "wrong_account": "Šis raktas priklauso kitai GRAAS paskyrai.",
+      "reconfigure_successful": "GRAAS ryšys atnaujintas."
     }
   },
   "entity": {
@@ -154,11 +168,11 @@
       "fields": {
         "duration_minutes": {
           "name": "Minutės",
-          "description": "Kiek laiko laistyti (1–120). Naudokite tai arba litrus."
+          "description": "Kiek laiko laistyti (1–300). Naudokite tai arba litrus."
         },
         "liters": {
           "name": "Litrai",
-          "description": "Kiek vandens (reikia srauto matuoklio, iki 2000). Irigator valdikliuose – vienam augalui. Naudokite tai arba minutes."
+          "description": "Kiek vandens (reikia srauto matuoklio, iki 1000). Irigator valdikliuose – vienam augalui. Naudokite tai arba minutes."
         }
       }
     },
@@ -195,6 +209,30 @@
     },
     "too_many_liters": {
       "message": "{liters} L vienam augalui × {plants} augalai = {total} L; vienas laistymas gali būti ne daugiau kaip {max} L."
+    },
+    "stop_all_failed": {
+      "message": "Nesustojo {failed} iš {total} GRAAS valdiklių: {controllers}"
+    },
+    "api_token_read_only": {
+      "message": "Šis GRAAS raktas leidžia tik skaityti. GRAAS programėlėje sukurkite raktą su valdymo teise ir iš naujo sukonfigūruokite integraciją su juo."
+    },
+    "device_offline": {
+      "message": "GRAAS valdiklis neprisijungęs, todėl zonos paleisti negalima."
+    },
+    "zone_already_running": {
+      "message": "Ši zona jau laistoma. Pirmiausia ją sustabdykite, tada paleiskite iš naujo."
+    },
+    "litres_need_flow_meter": {
+      "message": "Šis valdiklis neturi srauto matuoklio, todėl negali matuoti litrų. Naudokite minutes."
+    },
+    "no_next_run": {
+      "message": "Ši zona neturi suplanuoto laistymo, kurį būtų galima praleisti."
+    },
+    "not_found": {
+      "message": "Jūsų paskyroje GRAAS nebeturi šio valdiklio ar zonos."
+    },
+    "validation_failed": {
+      "message": "GRAAS nepriėmė reikšmių: {message}"
     }
   }
 }

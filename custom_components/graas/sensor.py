@@ -17,6 +17,8 @@ from homeassistant.const import (
     PERCENTAGE,
     SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
     EntityCategory,
+    Platform,
+    UnitOfConductivity,
     UnitOfPressure,
     UnitOfSpeed,
     UnitOfTemperature,
@@ -26,8 +28,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
-from .coordinator import GraasConfigEntry, GraasCoordinator
-from .entity import GraasEntity, GraasZoneEntity
+from .coordinator import GraasConfigEntry, GraasCoordinator, GraasData
+from .entity import GraasEntity, GraasZoneEntity, async_add_entities_dynamically
+
+# Read-only: entities only read the coordinator's data.
+PARALLEL_UPDATES = 0
 
 # Soil units Home Assistant has no constants for.
 UNIT_MG_PER_KG = "mg/kg"
@@ -167,7 +172,8 @@ ZONE_SENSORS: tuple[GraasSensorDescription, ...] = (
     GraasSensorDescription(
         key="soil_ec",
         translation_key="soil_ec",
-        native_unit_of_measurement="µS/cm",
+        device_class=SensorDeviceClass.CONDUCTIVITY,
+        native_unit_of_measurement=UnitOfConductivity.MICROSIEMENS_PER_CM,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda z: _soil(z, "ec"),
         exists_fn=lambda z: _soil(z, "ec") is not None,
@@ -237,19 +243,28 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: GraasConfigEntry, async_add_entities: AddConfigEntryEntitiesCallback
 ) -> None:
     coordinator = entry.runtime_data
-    entities: list[SensorEntity] = [
-        GraasDeviceSensor(coordinator, device_id, description)
-        for device_id, device in coordinator.data.devices.items()
-        for description in DEVICE_SENSORS
-        if description.exists_fn(device)
-    ]
-    entities += [
-        GraasZoneSensor(coordinator, zone_id, description)
-        for zone_id, zone in coordinator.data.zones.items()
-        for description in ZONE_SENSORS
-        if description.exists_fn(zone)
-    ]
-    async_add_entities(entities)
+
+    def candidates(data: GraasData) -> dict[str, Callable[[], SensorEntity]]:
+        # A reading that appears later (a probe added) gets its entity then; one
+        # that stops reporting keeps it (shown as unknown) rather than losing history.
+        found: dict[str, Callable[[], SensorEntity]] = {}
+        for device_id, device in data.devices.items():
+            for description in DEVICE_SENSORS:
+                if description.exists_fn(device):
+                    found[f"device_{device['deviceId']}_{description.key}"] = (
+                        lambda device_id=device_id, description=description: GraasDeviceSensor(
+                            coordinator, device_id, description
+                        )
+                    )
+        for zone_id, zone in data.zones.items():
+            for description in ZONE_SENSORS:
+                if description.exists_fn(zone):
+                    found[f"zone_{zone_id}_{description.key}"] = lambda zone_id=zone_id, description=description: (
+                        GraasZoneSensor(coordinator, zone_id, description)
+                    )
+        return found
+
+    async_add_entities_dynamically(hass, entry, async_add_entities, Platform.SENSOR, candidates)
 
 
 class GraasDeviceSensor(GraasEntity, SensorEntity):

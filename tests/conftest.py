@@ -8,6 +8,8 @@ from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.graas.const import CONF_API_URL, DEFAULT_API_URL, DOMAIN
@@ -126,3 +128,17 @@ def config_entry() -> MockConfigEntry:
         unique_id="42",
         data={"api_token": TOKEN, CONF_API_URL: DEFAULT_API_URL},
     )
+
+
+def find_device(hass: HomeAssistant, identifier: str) -> dr.DeviceEntry | None:
+    """The GRAAS device with this identifier.
+
+    Through the entries' devices: async_get_device(identifiers=…) and devices-as-a-mapping
+    are deprecated in Home Assistant 2026.10, and their replacements don't exist in 2025.10.
+    """
+    registry = dr.async_get(hass)
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        for device in dr.async_entries_for_config_entry(registry, entry.entry_id):
+            if (DOMAIN, identifier) in device.identifiers:
+                return device
+    return None

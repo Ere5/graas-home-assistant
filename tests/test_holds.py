@@ -119,7 +119,7 @@ async def test_a_refused_skip_is_shown_to_the_user(
     mock_api["skip"].side_effect = GraasCommandError("This zone has no upcoming run to skip.", "no_next_run")
     await _setup(hass, config_entry)
 
-    with pytest.raises(HomeAssistantError, match="no upcoming run"):
+    with pytest.raises(HomeAssistantError, match="no scheduled run to skip"):
         await hass.services.async_call("switch", "turn_on", {"entity_id": _eid(hass, "switch", SKIP)}, blocking=True)
 
 

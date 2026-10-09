@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .coordinator import GraasConfigEntry, GraasCoordinator
-from .entity import GraasZoneEntity
+from .coordinator import GraasConfigEntry, GraasCoordinator, GraasData
+from .entity import GraasZoneEntity, async_add_entities_dynamically
 
 PARALLEL_UPDATES = 1
 
@@ -23,16 +24,20 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: GraasConfigEntry, async_add_entities: AddConfigEntryEntitiesCallback
 ) -> None:
     coordinator = entry.runtime_data
-    # Only zones with a schedule or program: the others have nothing to skip.
-    zone_ids = [z for z, zone in coordinator.data.zones.items() if _has_schedule(zone)]
-    async_add_entities(GraasSkipNextRun(coordinator, zone_id) for zone_id in zone_ids)
 
-    # A zone whose schedule was removed loses its switch instead of leaving it "Unavailable".
-    wanted = {f"zone_{zone_id}_skip_next_run" for zone_id in zone_ids}
-    registry = er.async_get(hass)
-    for entry_ in er.async_entries_for_config_entry(registry, entry.entry_id):
-        if entry_.domain == "switch" and entry_.unique_id not in wanted:
-            registry.async_remove(entry_.entity_id)
+    def candidates(data: GraasData) -> dict[str, Callable[[], SwitchEntity]]:
+        # Only zones with a schedule or program: the others have nothing to skip.
+        return {
+            f"zone_{zone_id}_skip_next_run": lambda zone_id=zone_id: GraasSkipNextRun(coordinator, zone_id)
+            for zone_id, zone in data.zones.items()
+            if _has_schedule(zone)
+        }
+
+    # A zone whose schedule was removed loses its switch instead of keeping a useless one;
+    # one that gets a schedule gains it.
+    async_add_entities_dynamically(
+        hass, entry, async_add_entities, Platform.SWITCH, candidates, removable=lambda unique_id: True
+    )
 
 
 class GraasSkipNextRun(GraasZoneEntity, SwitchEntity):

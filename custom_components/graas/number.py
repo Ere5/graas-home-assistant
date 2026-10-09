@@ -3,17 +3,24 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 from datetime import datetime
 
 from homeassistant.components.number import NumberEntity, NumberMode, RestoreNumber
-from homeassistant.const import EntityCategory, UnitOfTime
+from homeassistant.const import EntityCategory, Platform, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
-from .const import DEFAULT_RUN_MINUTES, MAX_RAIN_DELAY_DAYS, MAX_RUN_MINUTES
-from .coordinator import GraasConfigEntry, GraasCoordinator
-from .entity import GraasEntity, GraasZoneEntity
+from .const import MAX_RAIN_DELAY_DAYS, MAX_RUN_MINUTES
+from .coordinator import GraasConfigEntry, GraasCoordinator, GraasData
+from .entity import (
+    GraasEntity,
+    GraasZoneEntity,
+    async_add_entities_dynamically,
+    clamp_run_minutes,
+    initial_run_minutes,
+)
 
 PARALLEL_UPDATES = 1
 
@@ -22,9 +29,19 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: GraasConfigEntry, async_add_entities: AddConfigEntryEntitiesCallback
 ) -> None:
     coordinator = entry.runtime_data
-    entities: list[NumberEntity] = [GraasRunTime(coordinator, zone_id) for zone_id in coordinator.data.zones]
-    entities += [GraasRainDelay(coordinator, device_id) for device_id in coordinator.data.devices]
-    async_add_entities(entities)
+
+    def candidates(data: GraasData) -> dict[str, Callable[[], NumberEntity]]:
+        found: dict[str, Callable[[], NumberEntity]] = {
+            f"zone_{zone_id}_run_time": lambda zone_id=zone_id: GraasRunTime(coordinator, zone_id)
+            for zone_id in data.zones
+        }
+        for device_id, device in data.devices.items():
+            found[f"device_{device['deviceId']}_rain_delay"] = lambda device_id=device_id: GraasRainDelay(
+                coordinator, device_id
+            )
+        return found
+
+    async_add_entities_dynamically(hass, entry, async_add_entities, Platform.NUMBER, candidates)
 
 
 class GraasRunTime(GraasZoneEntity, RestoreNumber):
@@ -41,20 +58,21 @@ class GraasRunTime(GraasZoneEntity, RestoreNumber):
     def __init__(self, coordinator: GraasCoordinator, zone_id: int) -> None:
         super().__init__(coordinator, zone_id, "run_time")
         # Start from the zone's own schedule length when it has one.
-        scheduled = self.zone_data.get("scheduleDurationMinutes")
-        initial = int(scheduled) if isinstance(scheduled, (int, float)) and scheduled > 0 else DEFAULT_RUN_MINUTES
-        self._attr_native_value = min(max(initial, 1), MAX_RUN_MINUTES)
+        self._attr_native_value = initial_run_minutes(self.zone_data)
+        # The valve uses it even before (or without, when disabled) this entity is added.
+        coordinator.run_minutes.setdefault(zone_id, self._attr_native_value)
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
         last = await self.async_get_last_number_data()
         if last is not None and last.native_value is not None:
-            self._attr_native_value = int(last.native_value)
-        self.coordinator.run_minutes[self._zone_id] = int(self._attr_native_value or DEFAULT_RUN_MINUTES)
+            # Within today's limits, whatever an older version (or a hand edit) stored.
+            self._attr_native_value = clamp_run_minutes(last.native_value)
+        self.coordinator.run_minutes[self._zone_id] = int(self._attr_native_value)
 
     async def async_set_native_value(self, value: float) -> None:
-        self._attr_native_value = int(value)
-        self.coordinator.run_minutes[self._zone_id] = int(value)
+        self._attr_native_value = clamp_run_minutes(value)
+        self.coordinator.run_minutes[self._zone_id] = self._attr_native_value
         self.async_write_ha_state()
 
 

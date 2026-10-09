@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from homeassistant.components.button import ButtonEntity
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .coordinator import GraasConfigEntry, GraasCoordinator
-from .entity import GraasEntity
+from .coordinator import GraasConfigEntry, GraasCoordinator, GraasData
+from .entity import GraasEntity, async_add_entities_dynamically
 
 PARALLEL_UPDATES = 1
 
@@ -16,7 +19,14 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: GraasConfigEntry, async_add_entities: AddConfigEntryEntitiesCallback
 ) -> None:
     coordinator = entry.runtime_data
-    async_add_entities(GraasStopAll(coordinator, device_id) for device_id in coordinator.data.devices)
+
+    def candidates(data: GraasData) -> dict[str, Callable[[], ButtonEntity]]:
+        return {
+            f"device_{device['deviceId']}_stop_all": lambda device_id=device_id: GraasStopAll(coordinator, device_id)
+            for device_id, device in data.devices.items()
+        }
+
+    async_add_entities_dynamically(hass, entry, async_add_entities, Platform.BUTTON, candidates)
 
 
 class GraasStopAll(GraasEntity, ButtonEntity):

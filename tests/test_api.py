@@ -140,7 +140,7 @@ async def test_validation_details_are_part_of_the_message(
             "error": {
                 "code": "validation_failed",
                 "message": "Validation failed",
-                "details": {"liters": ["The whole run may not exceed 2000 L."]},
+                "details": {"liters": ["The whole run may not exceed 1000 L."]},
             }
         },
     )
@@ -148,5 +148,5 @@ async def test_validation_details_are_part_of_the_message(
     with pytest.raises(GraasCommandError) as err:
         await _api(hass).async_start_zone(5, liters=900)
 
-    assert str(err.value) == "Validation failed: liters: The whole run may not exceed 2000 L."
+    assert str(err.value) == "Validation failed: liters: The whole run may not exceed 1000 L."
     assert err.value.code == "validation_failed"
