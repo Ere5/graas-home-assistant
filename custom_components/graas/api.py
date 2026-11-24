@@ -32,6 +32,9 @@ class GraasRateLimitError(GraasCommandError):
         self.retry_after = retry_after
 
 
+# GRAAS could not pass a start on to the controller: nothing is watering.
+NOT_DELIVERED = "command_not_delivered"
+
 # 403 codes meaning the token itself can't be used to read: as good as revoked.
 _UNUSABLE_TOKEN_CODES = frozenset({"api_token_no_read"})
 
@@ -53,7 +56,12 @@ class GraasApi:
     ) -> dict[str, Any]:
         """Start a bounded run: exactly one of duration_minutes or liters."""
         body: dict[str, Any] = {"liters": liters} if liters is not None else {"durationMinutes": duration_minutes}
-        return await self._request("POST", f"/api/ha/zones/{zone_id}/start", body)
+        data = await self._request("POST", f"/api/ha/zones/{zone_id}/start", body)
+        if data.get("status") == "failed":
+            # Older GRAAS servers answer 201 with a failed task when the command
+            # never reached the controller; newer ones answer 503 with this code.
+            raise GraasCommandError("The command could not be sent to the controller", NOT_DELIVERED)
+        return data
 
     async def async_stop_zone(self, zone_id: int) -> None:
         await self._request("POST", f"/api/ha/zones/{zone_id}/stop")
@@ -104,7 +112,7 @@ class GraasApi:
                 raise GraasRateLimitError(message or "Too many requests", code, retry_after)
             if status == 403 and code in _UNUSABLE_TOKEN_CODES:
                 raise GraasAuthError(message or "API token cannot read")
-            if status < 500:
+            if status < 500 or code == NOT_DELIVERED:
                 # GRAAS refused (offline device, read-only token, limits): its own words.
                 raise GraasCommandError(message or f"GRAAS answered {status}", code)
             raise GraasError(message or f"GRAAS answered {status}")

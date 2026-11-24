@@ -71,7 +71,9 @@ Errors use `{"error": {"code": "...", "message": "..."}}`. Known codes map to tr
 | 422 `validation_failed` | Bad amount, e.g. litres × plants > 1000 on per-plant devices | Raises the server's message |
 | 422 `litres_need_flow_meter` | Litres on a controller without a flow meter | Raises a translated error |
 | 429 `rate_limited` | 30 commands/min per token, or 20 failed logins/min per IP (with `Retry-After`) | Backs off; never re-auth |
+| 503 `command_not_delivered` | A start could not be passed on to the controller (broker trouble); nothing was started. Servers before November 2026 answer 201 with `"status": "failed"` instead | Raises a translated error; the valve stays closed |
 
+Stopping a zone that is not watering still sends the stop to the controller, but adds nothing to the run history.
 A start while another zone runs returns 201: the controller queues it and runs zones one at a time.
 Skip-next is idempotent: pressing it again keeps the existing skip.
 
@@ -91,10 +93,10 @@ open http://localhost:8123
 
 ## Tests
 
-The tests use [pytest-homeassistant-custom-component](https://github.com/MatthewFlamm/pytest-homeassistant-custom-component) on Python 3.13:
+The tests use [pytest-homeassistant-custom-component](https://github.com/MatthewFlamm/pytest-homeassistant-custom-component) on Python 3.14:
 
 ```sh
-docker run --rm -v "$PWD":/app -w /app python:3.13 sh -c \
+docker run --rm -v "$PWD":/app -w /app python:3.14 sh -c \
   "pip install -q -r requirements_test.txt && python -m pytest -q"
 ```
 
@@ -108,7 +110,7 @@ docker run --rm -v "$PWD":/app -w /app python:3.13 sh -c \
 - **HACS validation** (`hacs/action`, pinned to a release commit)
 - **hassfest** (Home Assistant's manifest and translation checks, pinned to a commit)
 - **ruff** (`ruff check` and `ruff format --check`)
-- **pytest** (`pytest-homeassistant-custom-component` pinned in `requirements_test.txt`)
+- **pytest**, twice: on the newest Home Assistant the test plugin supports (`requirements_test.txt`, Python 3.14) and on Home Assistant 2026.2.3 (Python 3.13)
 
 ## Releasing
 

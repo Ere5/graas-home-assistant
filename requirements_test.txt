@@ -1,3 +1,4 @@
-# Pinned: 0.13.316 brings Home Assistant 2026.2.3 (the newest that runs on Python 3.13).
+# Pinned: 0.13.375 brings Home Assistant 2026.10.4 (needs Python 3.14).
+# CI also runs the tests on Home Assistant 2026.2.3 / Python 3.13 (0.13.316).
 # The integration supports Home Assistant 2025.10 and newer (hacs.json).
-pytest-homeassistant-custom-component==0.13.316
+pytest-homeassistant-custom-component==0.13.375

@@ -27,6 +27,7 @@ _COMMAND_ERROR_KEYS: dict[str, str] = {
     "zone_not_found": "not_found",
     "device_not_found": "not_found",
     "rate_limited": "rate_limited",
+    "command_not_delivered": "command_not_delivered",
 }
 # The useful part of these is in GRAAS's message (which value, which limit).
 _COMMAND_ERROR_KEYS_WITH_MESSAGE: dict[str, str] = {
@@ -124,7 +125,7 @@ class GraasCoordinator(DataUpdateCoordinator[GraasData]):
             raise ConfigEntryAuthFailed(str(err)) from err
         except GraasRateLimitError as err:
             # Back off; never a reason to ask for a new token.
-            raise UpdateFailed(str(err), retry_after=err.retry_after) from err
+            raise _rate_limited(str(err), err.retry_after) from err
         except GraasError as err:
             raise UpdateFailed(str(err)) from err
 
@@ -176,10 +177,12 @@ class GraasCoordinator(DataUpdateCoordinator[GraasData]):
         Precedence, highest first: the entry whose account owns the controller,
         then the oldest entry (then the lowest entry id). An entry that has not
         polled yet (starting, reloading, waiting to retry its setup) may still
-        report the controller as its owner, so it keeps its place. The decision
-        never depends on which poll happens to come back first.
+        report the controller as its owner, so it keeps its place — unless this
+        account owns it: a controller has one owner, so this entry keeps it. The
+        decision never depends on which poll happens to come back first.
         """
-        mine = _precedence(self.config_entry, (self.seen or {}).get(serial, False))
+        i_own = (self.seen or {}).get(serial, False)
+        mine = _precedence(self.config_entry, i_own)
         best: tuple[tuple[bool, float, str], GraasCoordinator | None] | None = None
         lower_providers: list[GraasCoordinator] = []
         for entry in self.hass.config_entries.async_entries(DOMAIN):
@@ -196,7 +199,8 @@ class GraasCoordinator(DataUpdateCoordinator[GraasData]):
                 rank = _precedence(entry, other.seen[serial])
                 polled: GraasCoordinator | None = other
             else:
-                rank = _precedence(entry, True)
+                # Not polled yet: it may turn out to be the owner, unless this entry is.
+                rank = _precedence(entry, not i_own)
                 polled = None
             if rank < mine:
                 if best is None or rank < best[0]:
@@ -229,6 +233,18 @@ class GraasCoordinator(DataUpdateCoordinator[GraasData]):
         other.config_entry.async_create_task(
             self.hass, other.async_request_refresh(), f"{DOMAIN} handover refresh", eager_start=False
         )
+
+
+def _rate_limited(message: str, retry_after: float | None) -> UpdateFailed:
+    """A failed poll that waits as long as GRAAS asked.
+
+    Home Assistant before 2025.12 has no retry_after: there the poll just fails
+    and the next regular one tries again.
+    """
+    try:
+        return UpdateFailed(message, retry_after=retry_after)
+    except TypeError:
+        return UpdateFailed(message)
 
 
 def _may_provide(entry: ConfigEntry) -> bool:

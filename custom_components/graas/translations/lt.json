@@ -216,6 +216,9 @@
     "api_token_read_only": {
       "message": "Šis GRAAS raktas leidžia tik skaityti. GRAAS programėlėje sukurkite raktą su valdymo teise ir iš naujo sukonfigūruokite integraciją su juo."
     },
+    "command_not_delivered": {
+      "message": "GRAAS nepavyko išsiųsti komandos valdikliui, todėl niekas nepaleista. Bandykite dar kartą."
+    },
     "device_offline": {
       "message": "GRAAS valdiklis neprisijungęs, todėl zonos paleisti negalima."
     },

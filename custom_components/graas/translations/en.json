@@ -216,6 +216,9 @@
     "api_token_read_only": {
       "message": "This GRAAS token can only read. In the GRAAS app create a token with control access, then reconfigure the integration with it."
     },
+    "command_not_delivered": {
+      "message": "GRAAS could not send the command to the controller, so nothing was started. Try again."
+    },
     "device_offline": {
       "message": "The GRAAS controller is offline, so the zone can't be started."
     },

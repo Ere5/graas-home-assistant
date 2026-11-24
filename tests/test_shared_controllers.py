@@ -52,6 +52,9 @@ class _Server:
 
     def __init__(self, state: dict[str, Any]) -> None:
         self.states = {TOKEN_OLDER: copy.deepcopy(state), TOKEN_NEWER: copy.deepcopy(state)}
+        # A controller has one owner: by default the older account's, shared with the newer one.
+        for device in self.states[TOKEN_NEWER]["devices"]:
+            device["isOwner"] = False
         self.gates: dict[str, asyncio.Event] = {}
         self.down: set[str] = set()
 
@@ -268,3 +271,47 @@ async def test_a_controller_moving_to_another_account_waits_until_the_first_entr
     await _poll(hass, newer)
     assert _valve_entry(hass) == newer.entry_id
     assert hass.states.get(er.async_get(hass).async_get_entity_id("valve", DOMAIN, "zone_101_valve")).state == "closed"
+
+
+async def test_an_owner_does_not_wait_for_an_older_entry_that_has_not_answered(
+    hass: HomeAssistant, server: _Server, older: MockConfigEntry, newer: MockConfigEntry
+) -> None:
+    """Start-up, the newer entry owns the controller and answers first: it keeps it, with the same device."""
+    server.states[TOKEN_OLDER]["devices"][0]["isOwner"] = False
+    server.states[TOKEN_NEWER]["devices"][0]["isOwner"] = True
+    assert await async_setup_component(hass, DOMAIN, {})
+    server.gates[TOKEN_OLDER] = asyncio.Event()
+    older.add_to_hass(hass)
+    newer.add_to_hass(hass)
+    setup_older = hass.async_create_task(hass.config_entries.async_setup(older.entry_id))
+    await _until(lambda: older.state is ConfigEntryState.SETUP_IN_PROGRESS)
+
+    # (No block_till_done here: the older entry's setup is still waiting for its answer.)
+    assert await hass.config_entries.async_setup(newer.entry_id)
+    assert _valve_entry(hass) == newer.entry_id
+    device_id = _controller(hass, newer).id
+
+    server.gates[TOKEN_OLDER].set()
+    assert await setup_older
+    await hass.async_block_till_done()
+    await _poll(hass, older, newer, older)
+
+    assert _valve_entry(hass) == newer.entry_id
+    assert _controller(hass, newer).id == device_id
+    assert _controller(hass, older) is None
+
+
+async def test_an_owner_keeps_its_controller_while_an_older_entry_cannot_start(
+    hass: HomeAssistant, server: _Server, older: MockConfigEntry, newer: MockConfigEntry
+) -> None:
+    """The older entry's server is down (it keeps retrying): the owner's controller is not held back for it."""
+    server.states[TOKEN_NEWER]["devices"][0]["isOwner"] = True
+    server.down.add(TOKEN_OLDER)
+    older.add_to_hass(hass)
+    await hass.config_entries.async_setup(older.entry_id)
+    assert older.state is ConfigEntryState.SETUP_RETRY
+
+    await _setup(hass, newer)
+
+    assert _valve_entry(hass) == newer.entry_id
+    assert _controller(hass, newer) is not None

@@ -150,3 +150,30 @@ async def test_validation_details_are_part_of_the_message(
 
     assert str(err.value) == "Validation failed: liters: The whole run may not exceed 1000 L."
     assert err.value.code == "validation_failed"
+
+
+async def test_a_start_the_server_could_not_deliver_is_a_refusal(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """Older servers: 201 with a failed task. Nothing reached the controller."""
+    aioclient_mock.post(f"{BASE}/api/ha/zones/5/start", status=201, json={"taskId": 9, "status": "failed"})
+
+    with pytest.raises(GraasCommandError) as err:
+        await _api(hass).async_start_zone(5, duration_minutes=10)
+
+    assert err.value.code == "command_not_delivered"
+
+
+async def test_a_503_for_an_undelivered_start_is_a_refusal_not_an_outage(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    aioclient_mock.post(
+        f"{BASE}/api/ha/zones/5/start",
+        status=503,
+        json={"error": {"code": "command_not_delivered", "message": "The command could not be sent"}},
+    )
+
+    with pytest.raises(GraasCommandError) as err:
+        await _api(hass).async_start_zone(5, duration_minutes=10)
+
+    assert err.value.code == "command_not_delivered"

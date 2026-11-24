@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import copy
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.config_entries import ConfigEntryState
@@ -13,6 +13,7 @@ from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.update_coordinator import UpdateFailed
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -426,3 +427,25 @@ async def test_the_other_account_takes_over_when_the_first_is_removed(
     valve = er.async_get(hass).async_get(_eid(hass, "valve", "zone_101_valve"))
     assert valve.config_entry_id == shared.entry_id
     assert hass.states.get(valve.entity_id).state == "closed"
+
+
+async def test_a_rate_limited_poll_still_fails_cleanly_before_home_assistant_2025_12(
+    hass: HomeAssistant, mock_api: dict[str, AsyncMock], config_entry: MockConfigEntry
+) -> None:
+    """UpdateFailed had no retry_after there: the poll fails, it does not crash."""
+
+    class OldUpdateFailed(UpdateFailed):
+        def __init__(self, message: str) -> None:
+            super().__init__(message)
+
+    await _setup(hass, config_entry)
+    coordinator = config_entry.runtime_data
+    mock_api["get_state"].side_effect = GraasRateLimitError("Too many requests.", "rate_limited", 60)
+
+    with patch("custom_components.graas.coordinator.UpdateFailed", OldUpdateFailed):
+        await coordinator.async_refresh()
+        await hass.async_block_till_done()
+
+    assert coordinator.last_update_success is False
+    assert isinstance(coordinator.last_exception, OldUpdateFailed)
+    assert config_entry.state is ConfigEntryState.LOADED

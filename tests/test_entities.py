@@ -365,3 +365,17 @@ async def test_devices_are_registered_without_the_deprecated_via_device(
     for zone_id in (101, 102):
         zone = find_device(hass, f"graas-0000000000a1_zone_{zone_id}")
         assert zone.via_device_id == controller.id
+
+
+async def test_a_start_that_never_reached_the_controller_is_an_error_and_the_valve_stays_closed(
+    hass: HomeAssistant, mock_api: dict[str, AsyncMock], config_entry: MockConfigEntry
+) -> None:
+    await _setup(hass, config_entry)
+    entity_id = _entity_id(hass, "valve", "zone_101_valve")
+    mock_api["start"].side_effect = GraasCommandError("not sent", "command_not_delivered")
+
+    with pytest.raises(HomeAssistantError) as err:
+        await hass.services.async_call("valve", "open_valve", {"entity_id": entity_id}, blocking=True)
+
+    assert err.value.translation_key == "command_not_delivered"
+    assert hass.states.get(entity_id).state == "closed"
